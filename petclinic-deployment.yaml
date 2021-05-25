@@ -1,0 +1,113 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: petclinic
+  labels:
+    app: petclinic
+spec:
+  selector:
+    matchLabels:
+      app: petclinic
+
+  template:
+    metadata:
+      labels:
+        app: petclinic
+    spec:
+      containers:
+      - image: springcommunity/spring-petclinic-config-server
+        imagePullPolicy: Never        
+        name: config-server
+        ports:
+        - containerPort: 8888
+          name: config-server 
+
+      - image: springcommunity/spring-petclinic-discovery-server        
+        imagePullPolicy: Never
+        name: discovery
+        ports:
+        - containerPort: 8761
+          name: discovery
+        command: ["./dockerize","-wait=tcp://config-server:8888","-timeout=60s","--","java", "org.springframework.boot.loader.JarLauncher"]    
+
+      - image: springcommunity/spring-petclinic-customers-service
+        imagePullPolicy: Never
+        name: customers
+        ports:
+        - containerPort: 8081
+          name: customers
+        command: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "org.springframework.boot.loader.JarLauncher"]     
+
+      - image: springcommunity/spring-petclinic-visits-service
+        imagePullPolicy: Never
+        name: visits-service
+        ports:
+        - containerPort: 8082
+          name: visits-service
+        command: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "org.springframework.boot.loader.JarLauncher"]
+
+      - image: springcommunity/spring-petclinic-vets-service
+        imagePullPolicy: Never
+        name: vets-service
+        ports:
+        - containerPort: 8083
+          name: vets-service
+        command: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "org.springframework.boot.loader.JarLauncher"]
+
+      - image: springcommunity/spring-petclinic-api-gateway
+        imagePullPolicy: Never
+        name: api-gateway
+        ports:
+        - containerPort: 8080
+          name: api-gateway
+        command: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "org.springframework.boot.loader.JarLauncher"]
+
+      - image: openzipkin/zipkin
+        imagePullPolicy: Never
+        name: tracing-server
+        ports:
+        - containerPort: 9411
+          name: tracing-server
+        #env: 
+        #- JAVA_OPTS=-XX:+UnlockExperimentalVMOptions -Djava.security.egd=file:/dev/./urandom
+
+      - image: springcommunity/spring-petclinic-admin-server
+        imagePullPolicy: Never
+        name: admin-server
+        ports:
+        - containerPort: 9090
+          name: admin-server
+        command: ["./dockerize","-wait=tcp://discovery-server:8761","-timeout=60s","--","java", "org.springframework.boot.loader.JarLauncher"]   
+
+#      - image: ./docker/grafana
+#        name: grafana-server
+#        ports:
+#        - containerPort: 3000
+#          name: grafana-server
+#
+#      - image: ./docker/prometheus
+#        name: prometheus
+#        ports:
+#        - containerPort: 9091
+#          name: prometheus
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: petclinic
+  labels:
+    app: petclinic
+spec:
+  ports:
+    - nodePort: 30163
+      port: 8761
+      protocol: TCP
+      
+  
+  externalIPs:
+    - 1.2.4.114
+  type: LoadBalancer
+  selector:
+       app: petclinic
+  type: NodePort 
+
